@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WPRDC Property API</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Source Code Pro', monospace;
+        }
+    </style>
+</head>
+<body>
+<h1>It's the WPRDC Property API, ya'll!</h1>
+<h4>Check out the sweet documentation below, or check out <a href="single/?parcel_id=0028F00194000000">this example</a>.</h4>
+<h3>property-api/single/</h3>
+<p>Searches WPRDC resources for records relating to a requested property or parcel.</p>
+<h4>Parameters</h4>
+<ul>
+    <li><b>parcel_id</b> - [text] Parcel identification number for property being searched</li>
+</ul>
+<h4>Response</h4>
+<ul>
+    <li><b>success</b> - [boolean] False if there were errors; True otherwise</li>
+    <li><b>help</b> - [text] Helpful information regarding response</li>
+    <li><b>failed_searches</b> - [list[text]] list of all WPRDC datasets where a search for parcel_id returned an 0
+        results
+    </li>
+    <li><b>geo</b> - {"latitude": [float], "longitude", [float]} coordinates of property centroid</li>
+    <li><b>results</b> - [dict {dataset:list[results]}] JSON object mapping dataset to the data it contains relating to
+        the queried parcel_id
+    </li>
+</ul>
+</body>
+</html>
