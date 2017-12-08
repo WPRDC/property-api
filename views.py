@@ -8,7 +8,8 @@ import csv
 from collections import OrderedDict as OD, defaultdict
 
 from .models import CKANResource
-from .utils import get_data, get_batch_data, carto_intersect, to_geojson, to_csv, data_in_shape, get_parcels
+from .utils import get_data, get_batch_data, carto_intersect, to_geojson, to_csv, data_in_shape, get_parcels, \
+    get_owner_name
 
 from .tasks import async_data_in_shape
 
@@ -35,18 +36,23 @@ def single(request):
         if not success:
             failed_searches.append(resource.name)
         if success and resource.has_geo:
-            geo = {'latitude': data[resource.slug][0][resource.lat_field],
-                   'longitude': data[resource.slug][0][resource.lon_field]}
+            try:
+                geo = {'latitude': data[resource.slug][0][resource.lat_field],
+                       'longitude': data[resource.slug][0][resource.lon_field]}
+            except:
+                geo = {'latitude': '', 'longitude': ''}
 
     response = OD(
         [('success', True),
          ('help', 'Data for parcel {}.'.format(pin)),
          ('geo', geo),
+         ('owner', get_owner_name(pin)),
          ('results', data),
          ('failed_searches', failed_searches), ]
     )
 
     return JsonResponse(response)
+
 
 def single_parcel(request, pin=""):
     if not pin:
@@ -75,13 +81,14 @@ def single_parcel(request, pin=""):
         [('success', True),
          ('help', 'Data for parcel {}.'.format(pin)),
          ('geo', geo),
+         ('owner', get_owner_name(pin)),
          ('data', data),
          ('failed_searches', failed_searches), ]
     )
 
     return JsonResponse(response)
-    
-    
+
+
 def batch(request):
     try:
         pins = request.GET['parcel_ids']
@@ -134,7 +141,7 @@ def address_search(request):
         return JsonResponse({'success': False, 'help': 'must submit street number, street name, city and zip code'},
                             status=400)
 
-                            
+
 @csrf_exempt
 def data_within(request):
     # Get shape from request, if not present return error
@@ -142,8 +149,6 @@ def data_within(request):
         shape = request.POST['shape']
     except KeyError:
         return JsonResponse({'success': False, 'help': 'must shape of region you want to search in'}, status=400)
-
-
 
     # Get fields from request and convert to dict keyed by resource
     fields = {}
@@ -155,18 +160,18 @@ def data_within(request):
             else:
                 fields[f['r']] = [f['f']]
 
-    #data, fields_set = async_data_in_shape(shape, fields)
+    # data, fields_set = async_data_in_shape(shape, fields)
     getter = async_data_in_shape.delay(shape, fields)
-    #data, fields_set = getter.get()
+    # data, fields_set = getter.get()
     return JsonResponse({'job_id': getter.id})
-    
-    
+
+
 def get_collected_data(request):
     if 'job' in request.GET:
         job_id = request.GET['job']
     else:
         return HttpResponse('No job id given.', status=400)
-    
+
     # Get data type
     if 'type' not in request.GET:
         datatype = 'json'
@@ -175,13 +180,13 @@ def get_collected_data(request):
 
     if datatype not in DATATYPES:
         return JsonResponse({'success': False, 'help': datatype + ' is not a valid datatype'}, status=400)
-        
+
     job = async_data_in_shape.AsyncResult(job_id)
     if job.ready():
         data, fields_set = job.get()
     else:
         return HttpResponse('Job not ready.', status=400)
-    
+
     if datatype == 'json':
         response = {'success': True, 'help': '', 'data': data}
         return JsonResponse(response, status=200)
@@ -213,7 +218,7 @@ def get_progress(request):
         job_id = request.GET['job']
     else:
         return HttpResponse('No job id given.')
-        
+
     job = async_data_in_shape.AsyncResult(job_id)
 
     if job.state == "PROGRESS":
@@ -224,8 +229,8 @@ def get_progress(request):
         data = {'task': 'Starting', 'percent': 0}
 
     return JsonResponse(data)
-    
-    
+
+
 #################
 ##  BETA  ##
 ###############################################################################
@@ -245,7 +250,6 @@ def beta_parcels(request, parcel_ids=None):
         pins = parcel_ids.split(',')
         print("PINs: " + str(pins))
         results, failed_searches = get_parcels(pins, resources)
-    
 
         response['success'] = True
         response['results'] = results
@@ -255,4 +259,3 @@ def beta_parcels(request, parcel_ids=None):
     else:
         response['help'] = 'No parcel IDs Provided'
         pass
-
