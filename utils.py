@@ -297,6 +297,7 @@ def get_parcels(parcel_ids, resources):
             if resource.slug not in data:
                 data[resource.slug] = []
 
+        r['owner'] = get_owner_name(pin)
         r['data'] = data
         results.append(r)
     return results, failed_searches
