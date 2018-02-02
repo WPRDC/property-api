@@ -6,6 +6,7 @@
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.css" rel="stylesheet">
 </head>
+<body>
 <h1 id="propertyapi">Property API</h1>
 
 <p><a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a></p>
@@ -20,6 +21,12 @@ Our current instance can be found at <a href="https://tools.wprdc.org/property-a
 </ol>
 
 <h3 id="parcelsparcelsparcel_ids">Parcels <code>/parcels/&lt;parcel_id(s)&gt;</code></h3>
+
+<p>Paramters:</p>
+
+<ul>
+<li><code>parcel_id(s)</code> - a single 16-digit Allegheny County Parcel ID, or a comma-separated list of them</li>
+</ul>
 
 <p>Returns a json reprsentation of all data available for the queried parcel ID.  </p>
 
@@ -216,4 +223,5 @@ Our current instance can be found at <a href="https://tools.wprdc.org/property-a
   "failed_searches": []
 }
 </code></pre>
+</body>
 </html>

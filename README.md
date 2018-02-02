@@ -10,6 +10,10 @@ Our current instance can be found at [https://tools.wprdc.org/property-api/](htt
 
 
 ### Parcels `/parcels/<parcel_id(s)>`
+
+Paramters:
+* `parcel_id(s)` - a single 16-digit Allegheny County Parcel ID, or a comma-separated list of them
+
 Returns a json reprsentation of all data available for the queried parcel ID.  
 * `results` - the combined results of querying the datasets  
   * `geo` - geojson-formated geographic representations (centroid, boundary, address point, etc) of parcel. 
