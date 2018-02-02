@@ -20,7 +20,7 @@ Returns a json reprsentation of all data available for the queried parcel ID.
 * `help` - help text for help with debugging
 
 #### Example
-`GET http://tools.wprdc.org/property-api/v1/parcels/0028F00194000000`
+`GET http://tools.wprdc.org/property-api/v0/parcels/0028F00194000000`
 ```json
 {
   "success": true,
