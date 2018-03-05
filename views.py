@@ -1,6 +1,9 @@
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.cache.backends.base import DEFAULT_TIMEOUT
+from django.views.decorators.cache import cache_page
+from django.conf import settings
 
 import time
 import json
@@ -13,13 +16,15 @@ from .utils import get_data, get_batch_data, carto_intersect, to_geojson, to_csv
 
 from .tasks import async_data_in_shape
 
+CACHE_TTL = getattr(settings, 'CACHE_TTL', DEFAULT_TIMEOUT)
+
 DATATYPES = ['json', 'geojson', 'csv', 'carto']
 
 
 def index(request):
     return render(request, 'index.html')
 
-
+@cache_page(CACHE_TTL)
 def single(request):
     try:
         pin = request.GET['parcel_id']
@@ -53,7 +58,7 @@ def single(request):
 
     return JsonResponse(response)
 
-
+@cache_page(CACHE_TTL)
 def single_parcel(request, pin=""):
     if not pin:
         return JsonResponse({'success': False, 'help': 'parcel_id required'}, status=400)
@@ -144,12 +149,15 @@ def address_search(request):
 
 @csrf_exempt
 def data_within(request):
-    # Get shape from request, if not present return error
+    # Get shape from request, if not return error
     try:
         shape = request.POST['shape']
     except KeyError:
-        return JsonResponse({'success': False, 'help': 'must shape of region you want to search in'}, status=400)
-
+        return JsonResponse({'success': False, 'help': 'must provide shape of region within which to you want to search'}, status=400)
+    try:
+        region_name = request.POST['region_name']
+    except:
+        region_name = None
     # Get fields from request and convert to dict keyed by resource
     fields = {}
     if 'fields' in request.POST:
@@ -161,12 +169,13 @@ def data_within(request):
                 fields[f['r']] = [f['f']]
 
     # data, fields_set = async_data_in_shape(shape, fields)
-    getter = async_data_in_shape.delay(shape, fields)
+    getter = async_data_in_shape.delay(shape, region_name, fields)
     # data, fields_set = getter.get()
     return JsonResponse({'job_id': getter.id})
 
 
 def get_collected_data(request):
+
     if 'job' in request.GET:
         job_id = request.GET['job']
     else:
@@ -231,14 +240,13 @@ def get_progress(request):
     return JsonResponse(data)
 
 
-#################
+############
 ##  BETA  ##
 ###############################################################################
-
+@cache_page(CACHE_TTL)
 def beta_parcels(request, parcel_ids=None):
     resources = CKANResource.objects.all()
     failed_searches, data, geo = [], {}, {}
-    print("IDs: " + parcel_ids)
     response = OD(
         [('success', False),
          ('help', 'Data for parcels'),
@@ -248,7 +256,6 @@ def beta_parcels(request, parcel_ids=None):
 
     if parcel_ids:
         pins = parcel_ids.split(',')
-        print("PINs: " + str(pins))
         results, failed_searches = get_parcels(pins, resources)
 
         response['success'] = True

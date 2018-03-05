@@ -35,24 +35,35 @@ def get_data(pin, resource):
 
 def get_batch_data(pins, resource, fields=[], clean=True):
     result = {}
+    # Set fields.  Either a comma separated list of parcel_id_field and then other field IDs...
     if fields:
         fields_str = '"{}","'.format(resource.parcel_id_field) + '","'.join(fields) + '"'
+    # Or simply all fields
     else:
         fields_str = '*'
 
+    # copy fields to work on them.
     fieldset = copy.deepcopy(fields)
-    print(fields_str);
-    pin_list = "'{}'".format("','".join(pins))
-    qry = QUERY_TEMPLATE_MULTI.format(fields_str, str(resource.resource_id), resource.parcel_id_field, pin_list)
 
+    # convert list of pins to comma separated string list
+    pin_list = "'{}'".format("','".join(pins))
+
+    # Build query and send it to CKAN instance
+    qry = QUERY_TEMPLATE_MULTI.format(fields_str, str(resource.resource_id), resource.parcel_id_field, pin_list)
     r = requests.post(API_URL, json={'sql': qry})
-    # print(r.text);
+
     if r.status_code == 200:
+        # Instantiate counter for keeping track of records per parcel
         counter = Counter()
-        data = json.loads(r.text)['result']['records']
+
+        # Get the returned data
+        data = r.json()['result']['records']
+
         for row in data:
+            # Extract parcel ID, and remove that record from the data
             pin = row[resource.parcel_id_field]
             del row[resource.parcel_id_field]
+
             if pin in result:
                 counter[pin] += 1
                 row = {k + "_" + str(counter[pin]): v for k, v in row.items()}
@@ -99,7 +110,10 @@ def carto_intersect(shape, shape_table=None, parcel_table='property_assessment_a
 
     return resp.status_code, pins, geos
 
-def intersect(shape, shape_table=None, parcel_table='parcel_boundaries'):
+def intersect(shape, region_name, shape_table=None, parcel_table='parcel_boundaries'):
+    if region_name:
+        qry = 'SELECT pin, ST_AsGeoJSON(geom) as the_geom FROM {parcel_table} a WHERE ST_INTERSECTS({shape}, a.geom)'
+
     shape = shape.replace('the_geom', 'geom')
     query_template = 'SELECT pin, ST_AsGeoJSON(geom) as the_geom FROM {parcel_table} a WHERE ST_INTERSECTS({shape}, a.geom)'
     qry = query_template.format(parcel_table=parcel_table, shape=shape)
@@ -267,7 +281,6 @@ def get_parcels(parcel_ids, resources):
     failed_searches = []
 
     for resource in resources:
-        print(resource)
         success, data[resource.slug], fields = v1_get_batch_data(parcel_ids, resource)
         if not success:
             failed_searches.append(resource.name)
@@ -311,7 +324,6 @@ def v1_get_batch_data(pins, resource, fields=[], clean=True):
         fields_str = '*'
 
     fieldset = copy.deepcopy(fields)
-    print(fields_str);
     pin_list = "'{}'".format("','".join(pins))
     qry = QUERY_TEMPLATE_MULTI.format(fields_str, resource.resource_id, resource.parcel_id_field, pin_list)
 
@@ -339,7 +351,6 @@ def v1_get_batch_data(pins, resource, fields=[], clean=True):
     
 def get_owner_name(parcel_id):
     URL_TEMPLATE = 'http://www2.county.allegheny.pa.us/RealEstate/GeneralInfo.aspx?ParcelID='
-    print(parcel_id)
     owner_name = ''
     r = requests.get(URL_TEMPLATE+parcel_id);
     try:

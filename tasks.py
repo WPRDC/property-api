@@ -18,26 +18,32 @@ def update_progress(task, percent):
 
 
 @app.task
-def async_data_in_shape(shape, fields):
-    print('start', time.clock())
-    update_progress('starting', 0)
-    data, failed_searches = {}, []
-    resources = CKANResource.objects.filter(resource_id__in=fields.keys())
-    all_fields = []
+def async_data_in_shape(shape, region_name, fields):
+    data, failed_searches, all_fields = {}, [], []
 
-    # Get PINs
+    # Set progress to starting - so applications can check on progress
+    update_progress('starting', 0)
+
+    # Get list of datasets (CKAN Resources) we're searching through
+    resources = CKANResource.objects.filter(resource_id__in=fields.keys())
+
+    # Get IDs of all parcels that are within the shape
     update_progress('Gathering Parcels from Your Region', 10)
-    status, pins, geos = intersect(shape)
+    status, pins, geos = intersect(shape, region_name)
+
+    # Setup progress tracking for the data collection setting.
+    num_of_resources = len(resources) if len(resources) else 1
+    progress_percent = 50 + (30 // num_of_resources)
 
     # Get data for the parcels
-    num = len(resources) if len(resources) else 1
-    
-    cntr = 50 + (30 //num)
     for resource in resources:
         data[resource.slug] = {}
         success = False
-        update_progress('Gathering {} Data'.format(resource.name), cntr)
-        cntr += (30 // num)
+        # Display current percent.  Ticks up for each resource that's been searched through
+        update_progress('Gathering {} Data'.format(resource.name), progress_percent)
+        progress_percent += (30 // num_of_resources)
+
+        # Iterate of chunks of parcel IDs.  i.e. we'll only work on 15000 Parcel IDs at a time
         for pin_list in chunks(pins, 15000):
             success, temp_data, fieldset = get_batch_data(pin_list, resource,
                                                           fields=fields[str(resource.resource_id)], clean=True)
